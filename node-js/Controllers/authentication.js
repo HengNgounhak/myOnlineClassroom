@@ -138,16 +138,27 @@ exports.updateProfile = (req, res) => {
 
 exports.updateUser = (req, res) => {
     const userId = req.params.userId;
-    // upload file function
-    let image;
-    let uploadPath;
+    const username = req.body.username;
+    const email = req.body.email;
+    if (req.body.newPwd) {
+        const newPwd = req.body.newPwd;
+    }
 
 
     User.findByIdAndUpdate(userId)
         .then((user) => {
-            user.profile = picPath;
-            // res.json({ success: true });
-            res.redirect('http://localhost:8080/account')
+            user.username = username;
+            user.email = email;
+            if (req.body.newPwd) {
+                user.password = req.body.newPwd;
+            }
+            const myUser = { id: userId, username: username, email: email, profile: user.profile };
+            //create token for user
+            const token = jwt.sign({
+                data: myUser
+            }, secret, { expiresIn: 60 * 60 * 4 });
+            res.json({ "token": token });
+            // res.redirect('http://localhost:8080/')
             return user.save();
         })
         .catch(err => {
