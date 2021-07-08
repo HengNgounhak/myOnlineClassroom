@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 const User = require('../Models/User');
 const jwt = require('jsonwebtoken');
 const secret = "1234567890";
+// const multer = require('multer');
+// const upload = require('../index');
+// const imgName = require('../index');
 
 exports.login = (req, res) => {
     const email = req.body.email;
@@ -76,7 +79,6 @@ exports.logout = (req, res) => {
 
 exports.getUser = (req, res) => {
     const token = req.body.token;
-
     try {
         const decoded = jwt.verify(token, secret);
         if (decoded) {
@@ -87,70 +89,103 @@ exports.getUser = (req, res) => {
     }
 }
 
-exports.getTeacher = (req, res) => {
-    const id = req.body.tId;
+exports.getPerson = (req, res) => {
+    const id = req.params.userId;
 
     User.find({ _id: id }).then(result => {
         if (result != "") {
-            res.json({ "teacher": result[0] })
+            res.json({ "person": result[0] })
         }
     }).catch((err) => {
         console.log(err)
     })
 }
 
-exports.updateProfile = (req, res) => {
-    const userId = req.params.userId;
-    // upload file function
-    let image;
-    let uploadPath;
+// exports.updateProfile = (req, res) => {
+//     const userId = req.params.userId;
+//     // upload file function
+//     let image;
+//     let uploadPath;
 
-    console.log("=======", req.params);
+//     console.log("=======", req.params);
 
-    if (!req.files || Object.keys(req.files).length === 0) {
-        return res.status(400).send('No files were uploaded.');
-    }
+//     if (!req.files || Object.keys(req.files).length === 0) {
+//         return res.status(400).send('No files were uploaded.');
+//     }
 
-    // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-    image = req.files.newProfile;
-    uploadPath = __dirname + '/../public/fileUpload/' + image.name;
+//     // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+//     image = req.files.newProfile;
+//     uploadPath = __dirname + '/../public/fileUpload/' + image.name;
 
-    // Use the mv() method to place the file somewhere on your server
-    image.mv(uploadPath, function(err) {
-        if (err)
-            return res.status(500).send(err);
+//     // Use the mv() method to place the file somewhere on your server
+//     image.mv(uploadPath, function(err) {
+//         if (err)
+//             return res.status(500).send(err);
 
-        // res.send('File uploaded!');
-        // res.redirect('http://localhost:8080/account')
-    });
-    const picPath = '../../../node-js/public/fileUpload/' + image.name;
-    User.findByIdAndUpdate(userId)
-        .then((user) => {
-            user.profile = picPath;
-            // res.json({ success: true });
-            res.redirect('http://localhost:8080/account')
-            return user.save();
-        })
-        .catch(err => {
-            console.log(err);
-        })
-}
+//         // res.send('File uploaded!');
+//         // res.redirect('http://localhost:8080/account')
+//     });
+//     const picPath = '../../../node-js/public/fileUpload/' + image.name;
+//     User.findByIdAndUpdate(userId)
+//         .then((user) => {
+//             user.profile = picPath;
+//             res.status(200).json({
+//                 success: true,
+//                 url: `http://127.0.0.1:4000/${image.name}`
+//             })
+//             res.redirect('http://localhost:8080/account')
+//             return user.save();
+//         })
+//         .catch(err => {
+//             console.log(err);
+//         })
+// }
+
+// let imgName;
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         cb(null, './../public/fileUpload');
+//     },
+//     filename: (req, file, cb) => {
+//         const { originalname } = file;
+//         imgName = originalname;
+//         cb(null, originalname);
+//     }
+// })
+
+// const upload = multer({ storage });
+// exports.updateProfile = (upload.single('photo'), (req, res) => {
+//     const userId = req.params.userId;
+
+//     User.findByIdAndUpdate(userId)
+//         .then((user) => {
+//             user.profile = imgName;
+//             const myUser = { id: userId, username: user.username, email: user.email, profile: imgName };
+//             //create token for user
+//             const token = jwt.sign({
+//                 data: myUser
+//             }, secret, { expiresIn: 60 * 60 * 4 });
+//             res.json({ "token": token });
+//             return user.save();
+//         })
+//         .catch(err => {
+//             console.log(err);
+//         })
+// });
 
 exports.updateUser = (req, res) => {
     const userId = req.params.userId;
     const username = req.body.username;
     const email = req.body.email;
-    if (req.body.newPwd) {
-        const newPwd = req.body.newPwd;
-    }
 
+    const salt = bcrypt.genSaltSync(10);
 
     User.findByIdAndUpdate(userId)
         .then((user) => {
             user.username = username;
             user.email = email;
             if (req.body.newPwd) {
-                user.password = req.body.newPwd;
+                user.password = bcrypt.hashSync(req.body.newPwd, salt);
             }
             const myUser = { id: userId, username: username, email: email, profile: user.profile };
             //create token for user
@@ -158,7 +193,6 @@ exports.updateUser = (req, res) => {
                 data: myUser
             }, secret, { expiresIn: 60 * 60 * 4 });
             res.json({ "token": token });
-            // res.redirect('http://localhost:8080/')
             return user.save();
         })
         .catch(err => {

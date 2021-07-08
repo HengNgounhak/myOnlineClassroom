@@ -118,7 +118,7 @@ exports.leaveClass = (req, res) => {
     const classId = req.params.classId;
     const sId = req.body.sId
 
-    //add student to class
+    //remove student to from class
     Class.findByIdAndUpdate(classId)
         .then((result) => {
             //find classes that have this user
@@ -128,10 +128,27 @@ exports.leaveClass = (req, res) => {
                     res.json({ success: true });
                 }
             }
+            if (req.body.makeAsTeacher) {
+                result.teacher.push(sId);
+            }
             return result.save();
         })
         .catch(err => {
             console.log(err);
         })
 
+}
+
+exports.aClass = (req, res) => {
+    const cId = req.params.classId;
+
+    Class.find({ _id: cId }).then(result => {
+        if (result != "") {
+            res.json({ myClass: result[0] })
+        } else {
+            res.json({ success: false });
+        }
+    }).catch(err => {
+        console.log(err)
+    })
 }

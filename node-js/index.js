@@ -4,7 +4,10 @@ const path = require('path')
 const cors = require('cors')
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
-const fileUpload = require("express-fileupload");
+const multer = require('multer');
+const jwt = require('jsonwebtoken');
+const secret = "1234567890";
+const User = require('./Models/User')
 
 const app = express()
 const port = 4000
@@ -13,7 +16,8 @@ const routes = require('./Routes/admin')
 app.use(cors()) //allow this port open security for other
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname, 'public/fileUpload')))
+app.use(express.static(path.join(__dirname, '../public/fileUpload')))
 
 app.use(cookieParser());
 app.use(session({
@@ -28,32 +32,41 @@ app.use(session({
     name: 'sid'
 }));
 
-app.use(fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 }
-}));
+let imgName; //to store name file for db
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'public/fileUpload'); //put path for file
+    },
+    filename: (req, file, cb) => { //put original name for file
+        const { originalname } = file;
+        imgName = originalname;
+        cb(null, originalname);
+    }
+})
+const upload = multer({ storage });
 
-// app.post('/upload', (req, res) => {
-//     // upload file function
-//     let image;
-//     let uploadPath;
+app.post('/updateProfile/:userId', upload.single('photo'), (req, res) => {
+    const userId = req.params.userId;
 
-//     if (!req.files || Object.keys(req.files).length === 0) {
-//         return res.status(400).send('No files were uploaded.');
-//     }
+    User.findByIdAndUpdate(userId)
+        .then((user) => {
+            user.profile = imgName;
+            const myUser = { id: userId, username: user.username, email: user.email, profile: imgName };
+            //create token for user
+            const token = jwt.sign({
+                data: myUser
+            }, secret, { expiresIn: 60 * 60 * 4 });
+            res.json({ "token": token });
+            return user.save();
+        })
+        .catch(err => {
+            console.log(err);
+        })
+});
 
-//     // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-//     image = req.files.image;
-//     console.log(image);
-//     uploadPath = __dirname + '/public/fileUpload/' + image.name;
-
-//     // Use the mv() method to place the file somewhere on your server
-//     image.mv(uploadPath, function(err) {
-//         if (err)
-//             return res.status(500).send(err);
-
-//         res.send('File uploaded!');
-//     });
-// })
+app.post('/postFile', upload.array('files'), (req, res) => {
+    res.json({ success: true })
+});
 
 app.use(routes)
 
